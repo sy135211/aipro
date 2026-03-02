@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文章列表 - TechBlog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="/" class="navbar-brand">
+        <span class="logo-icon">T</span>
+        TechBlog
+      </a>
+      <ul class="navbar-nav" id="navMenu">
+        <li><a href="/">&#127968; 首页</a></li>
+        <li><a href="/posts.html" class="active">&#128196; 文章</a></li>
+        <li id="navDashboard" class="hidden"><a href="/dashboard.html">&#128202; 管理</a></li>
+      </ul>
+      <div class="navbar-actions">
+        <div id="guestActions">
+          <a href="/login.html" class="btn btn-outline btn-sm">登录</a>
+          <a href="/register.html" class="btn btn-primary btn-sm">注册</a>
+        </div>
+        <div id="userActions" class="hidden">
+          <div class="user-menu" id="userMenuToggle">
+            <div class="user-avatar" id="userAvatarNav">U</div>
+            <span id="usernameNav" style="font-size:0.875rem; font-weight:500;">用户</span>
+            <span style="font-size:0.75rem;">&#9660;</span>
+          </div>
+          <div class="user-dropdown" id="userDropdown">
+            <a href="/dashboard.html">&#128202; 管理面板</a>
+            <a href="/editor.html">&#9997;&#65039; 写文章</a>
+            <a href="/profile.html">&#128100; 个人资料</a>
+            <div class="divider"></div>
+            <button onclick="handleLogout()">&#128682; 退出登录</button>
+          </div>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="菜单">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-content">
+    <div class="container">
+      <div class="section-header">
+        <h2>&#128196; 所有文章</h2>
+      </div>
+
+      <!-- 搜索和筛选 -->
+      <div class="search-bar">
+        <input type="text" class="form-control" id="searchInput"
+               placeholder="&#128269; 搜索文章标题或内容...">
+        <select class="form-control" id="categoryFilter" style="max-width:200px;">
+          <option value="">所有分类</option>
+        </select>
+        <select class="form-control" id="sortSelect" style="max-width:160px;">
+          <option value="created_at-DESC">最新发布</option>
+          <option value="created_at-ASC">最早发布</option>
+          <option value="view_count-DESC">最多浏览</option>
+          <option value="title-ASC">标题 A-Z</option>
+        </select>
+        <button class="btn btn-primary" id="searchBtn">搜索</button>
+      </div>
+
+      <!-- 文章列表 -->
+      <div id="postsList" class="posts-grid">
+        <div class="loading-overlay" style="grid-column:1/-1;">
+          <div class="loading-spinner"></div>
+        </div>
+      </div>
+
+      <!-- 分页 -->
+      <div id="pagination" class="pagination"></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 TechBlog - 全栈技术博客</p>
+    </div>
+  </footer>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/js/utils.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    let currentPage = 1;
+    const pageSize = 9;
+
+    // 加载分类筛选
+    async function loadCategories() {
+      try {
+        const data = await API.getCategories();
+        const select = document.getElementById('categoryFilter');
+        if (data.categories) {
+          data.categories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.id;
+            opt.textContent = cat.name;
+            select.appendChild(opt);
+          });
+        }
+        // 如果 URL 中有分类参数
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('category')) {
+          select.value = params.get('category');
+        }
+      } catch {}
+    }
+
+    // 加载文章
+    async function loadPosts(page = 1) {
+      currentPage = page;
+      const container = document.getElementById('postsList');
+      container.innerHTML = '<div class="loading-overlay" style="grid-column:1/-1;"><div class="loading-spinner"></div></div>';
+
+      const search = document.getElementById('searchInput').value.trim();
+      const category_id = document.getElementById('categoryFilter').value;
+      const [sort, order] = document.getElementById('sortSelect').value.split('-');
+
+      try {
+        const data = await API.getPosts({
+          page,
+          limit: pageSize,
+          search,
+          category_id,
+          sort,
+          order,
+        });
+
+        if (data.posts && data.posts.length > 0) {
+          container.innerHTML = data.posts.map(post => createPostCard(post)).join('');
+          renderPagination(data.currentPage, data.totalPages);
+        } else {
+          container.innerHTML = `
+            <div class="empty-state" style="grid-column:1/-1;">
+              <div class="icon">&#128270;</div>
+              <h3>没有找到文章</h3>
+              <p>尝试使用不同的关键词或筛选条件</p>
+            </div>`;
+          document.getElementById('pagination').innerHTML = '';
+        }
+      } catch {
+        container.innerHTML = '<p class="text-center text-muted" style="grid-column:1/-1;">加载失败</p>';
+      }
+    }
+
+    // 渲染分页
+    function renderPagination(current, total) {
+      const container = document.getElementById('pagination');
+      if (total <= 1) { container.innerHTML = ''; return; }
+
+      let html = `<button class="page-btn" onclick="loadPosts(${current - 1})" ${current <= 1 ? 'disabled' : ''}>&laquo; 上一页</button>`;
+
+      const start = Math.max(1, current - 2);
+      const end = Math.min(total, current + 2);
+
+      if (start > 1) {
+        html += `<button class="page-btn" onclick="loadPosts(1)">1</button>`;
+        if (start > 2) html += `<span style="padding:0 0.5rem;">...</span>`;
+      }
+
+      for (let i = start; i <= end; i++) {
+        html += `<button class="page-btn ${i === current ? 'active' : ''}" onclick="loadPosts(${i})">${i}</button>`;
+      }
+
+      if (end < total) {
+        if (end < total - 1) html += `<span style="padding:0 0.5rem;">...</span>`;
+        html += `<button class="page-btn" onclick="loadPosts(${total})">${total}</button>`;
+      }
+
+      html += `<button class="page-btn" onclick="loadPosts(${current + 1})" ${current >= total ? 'disabled' : ''}>下一页 &raquo;</button>`;
+
+      container.innerHTML = html;
+    }
+
+    // 事件绑定
+    document.getElementById('searchBtn').addEventListener('click', () => loadPosts(1));
+    document.getElementById('searchInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loadPosts(1);
+    });
+    document.getElementById('categoryFilter').addEventListener('change', () => loadPosts(1));
+    document.getElementById('sortSelect').addEventListener('change', () => loadPosts(1));
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadCategories();
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('search')) {
+        document.getElementById('searchInput').value = params.get('search');
+      }
+      loadPosts(1);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文章详情 - TechBlog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="/" class="navbar-brand">
+        <span class="logo-icon">T</span>
+        TechBlog
+      </a>
+      <ul class="navbar-nav" id="navMenu">
+        <li><a href="/">&#127968; 首页</a></li>
+        <li><a href="/posts.html">&#128196; 文章</a></li>
+        <li id="navDashboard" class="hidden"><a href="/dashboard.html">&#128202; 管理</a></li>
+      </ul>
+      <div class="navbar-actions">
+        <div id="guestActions">
+          <a href="/login.html" class="btn btn-outline btn-sm">登录</a>
+          <a href="/register.html" class="btn btn-primary btn-sm">注册</a>
+        </div>
+        <div id="userActions" class="hidden">
+          <div class="user-menu" id="userMenuToggle">
+            <div class="user-avatar" id="userAvatarNav">U</div>
+            <span id="usernameNav" style="font-size:0.875rem; font-weight:500;">用户</span>
+            <span style="font-size:0.75rem;">&#9660;</span>
+          </div>
+          <div class="user-dropdown" id="userDropdown">
+            <a href="/dashboard.html">&#128202; 管理面板</a>
+            <a href="/editor.html">&#9997;&#65039; 写文章</a>
+            <a href="/profile.html">&#128100; 个人资料</a>
+            <div class="divider"></div>
+            <button onclick="handleLogout()">&#128682; 退出登录</button>
+          </div>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="菜单">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-content">
+    <article class="post-detail" id="postDetail">
+      <div class="loading-overlay">
+        <div class="loading-spinner"></div>
+      </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 TechBlog - 全栈技术博客</p>
+    </div>
+  </footer>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/js/utils.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const params = new URLSearchParams(window.location.search);
+      const postId = params.get('id');
+
+      if (!postId) {
+        document.getElementById('postDetail').innerHTML = `
+          <div class="empty-state">
+            <div class="icon">&#128533;</div>
+            <h3>文章不存在</h3>
+            <p><a href="/posts.html">返回文章列表</a></p>
+          </div>`;
+        return;
+      }
+
+      try {
+        const data = await API.getPost(postId);
+        const post = data.post;
+        document.title = `${post.title} - TechBlog`;
+
+        const tagsHtml = post.tags && post.tags.length > 0
+          ? `<div class="post-detail-tags">
+              ${post.tags.map(t => `<span class="tag">${escapeHtml(t.name)}</span>`).join('')}
+             </div>`
+          : '';
+
+        // 操作按钮（作者或管理员）
+        const user = Auth.getUser();
+        const actionsHtml = user && (user.id === post.user_id || user.role === 'admin')
+          ? `<div style="margin-top:2rem; display:flex; gap:0.5rem; justify-content:center;">
+               <a href="/editor.html?id=${post.id}" class="btn btn-secondary btn-sm">&#9997;&#65039; 编辑</a>
+               <button class="btn btn-danger btn-sm" onclick="deletePost(${post.id})">&#128465; 删除</button>
+             </div>`
+          : '';
+
+        document.getElementById('postDetail').innerHTML = `
+          <div class="post-detail-header">
+            ${post.category_name ? `<span class="post-card-category" style="margin-bottom:0.75rem;">${escapeHtml(post.category_name)}</span>` : ''}
+            <h1>${escapeHtml(post.title)}</h1>
+            <div class="post-detail-meta">
+              <span>&#128100; ${escapeHtml(post.author_name)}</span>
+              <span>&#128197; ${formatDate(post.created_at)}</span>
+              <span>&#128065; ${post.view_count} 次浏览</span>
+            </div>
+          </div>
+          <div class="post-detail-content">
+            ${post.content}
+          </div>
+          ${tagsHtml}
+          ${actionsHtml}
+          <div style="margin-top:2rem; text-align:center;">
+            <a href="/posts.html" class="btn btn-secondary">&larr; 返回文章列表</a>
+          </div>
+        `;
+      } catch {
+        document.getElementById('postDetail').innerHTML = `
+          <div class="empty-state">
+            <div class="icon">&#128533;</div>
+            <h3>文章不存在或加载失败</h3>
+            <p><a href="/posts.html">返回文章列表</a></p>
+          </div>`;
+      }
+    });
+
+    async function deletePost(id) {
+      if (!confirm('确定要删除这篇文章吗？此操作不可撤销。')) return;
+      try {
+        await API.deletePost(id);
+        showToast('文章已删除', 'success');
+        setTimeout(() => window.location.href = '/dashboard.html', 800);
+      } catch (error) {
+        showToast(error.message || '删除失败', 'error');
+      }
+    }
+  </script>
+</body>
+</html>

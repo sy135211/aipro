@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注册 - TechBlog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="/" class="navbar-brand">
+        <span class="logo-icon">T</span>
+        TechBlog
+      </a>
+      <div>
+        <a href="/login.html" class="btn btn-outline btn-sm">登录</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 注册表单 -->
+  <div class="auth-page">
+    <div class="auth-card">
+      <h2>&#128640; 创建账号</h2>
+      <p class="auth-subtitle">加入我们，开始你的写作之旅</p>
+
+      <form id="registerForm" novalidate>
+        <div class="form-group">
+          <label for="username" class="form-label">用户名</label>
+          <input type="text" id="username" name="username" class="form-control"
+                 placeholder="你的用户名" required autocomplete="username">
+          <div class="form-hint">2-50个字符，支持中文、字母、数字和下划线</div>
+          <div class="form-error hidden" id="usernameError"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="email" class="form-label">邮箱地址</label>
+          <input type="email" id="email" name="email" class="form-control"
+                 placeholder="your@email.com" required autocomplete="email">
+          <div class="form-error hidden" id="emailError"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="password" class="form-label">密码</label>
+          <input type="password" id="password" name="password" class="form-control"
+                 placeholder="至少6个字符" required autocomplete="new-password">
+          <div class="form-error hidden" id="passwordError"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="confirmPassword" class="form-label">确认密码</label>
+          <input type="password" id="confirmPassword" name="confirmPassword" class="form-control"
+                 placeholder="再次输入密码" required>
+          <div class="form-error hidden" id="confirmPasswordError"></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="registerBtn">
+          注册
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        已有账号？ <a href="/login.html">立即登录</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/js/utils.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    if (Auth.isLoggedIn()) {
+      window.location.href = '/dashboard.html';
+    }
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('registerBtn');
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      // 前端验证
+      let valid = true;
+
+      if (!username || username.length < 2) {
+        showFieldError('username', '用户名至少2个字符');
+        valid = false;
+      } else {
+        clearFieldError('username');
+      }
+
+      if (!email || !isValidEmail(email)) {
+        showFieldError('email', '请输入有效的邮箱地址');
+        valid = false;
+      } else {
+        clearFieldError('email');
+      }
+
+      if (!password || password.length < 6) {
+        showFieldError('password', '密码至少6个字符');
+        valid = false;
+      } else {
+        clearFieldError('password');
+      }
+
+      if (password !== confirmPassword) {
+        showFieldError('confirmPassword', '两次输入的密码不一致');
+        valid = false;
+      } else {
+        clearFieldError('confirmPassword');
+      }
+
+      if (!valid) return;
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner" style="width:20px;height:20px;"></span> 注册中...';
+
+      try {
+        const data = await API.register({ username, email, password });
+        Auth.setToken(data.token, data.user);
+        showToast('注册成功！正在跳转...', 'success');
+        setTimeout(() => {
+          window.location.href = '/dashboard.html';
+        }, 800);
+      } catch (error) {
+        showToast(error.message || '注册失败', 'error');
+        btn.disabled = false;
+        btn.textContent = '注册';
+      }
+    });
+  </script>
+</body>
+</html>

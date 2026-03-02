@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理面板 - TechBlog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="/" class="navbar-brand">
+        <span class="logo-icon">T</span>
+        TechBlog
+      </a>
+      <ul class="navbar-nav" id="navMenu">
+        <li><a href="/">&#127968; 首页</a></li>
+        <li><a href="/posts.html">&#128196; 文章</a></li>
+        <li id="navDashboard"><a href="/dashboard.html" class="active">&#128202; 管理</a></li>
+      </ul>
+      <div class="navbar-actions">
+        <div id="guestActions" class="hidden">
+          <a href="/login.html" class="btn btn-outline btn-sm">登录</a>
+        </div>
+        <div id="userActions">
+          <div class="user-menu" id="userMenuToggle">
+            <div class="user-avatar" id="userAvatarNav">U</div>
+            <span id="usernameNav" style="font-size:0.875rem; font-weight:500;">用户</span>
+            <span style="font-size:0.75rem;">&#9660;</span>
+          </div>
+          <div class="user-dropdown" id="userDropdown">
+            <a href="/dashboard.html">&#128202; 管理面板</a>
+            <a href="/editor.html">&#9997;&#65039; 写文章</a>
+            <a href="/profile.html">&#128100; 个人资料</a>
+            <div class="divider"></div>
+            <button onclick="handleLogout()">&#128682; 退出登录</button>
+          </div>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="菜单">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-content">
+    <div class="container dashboard">
+      <div class="section-header">
+        <h2>&#128202; 管理面板</h2>
+        <a href="/editor.html" class="btn btn-primary">&#10133; 写新文章</a>
+      </div>
+
+      <!-- 统计卡片 -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-icon blue">&#128196;</div>
+          <div class="stat-info">
+            <h3 id="statMyPosts">-</h3>
+            <p>我的文章</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">&#127757;</div>
+          <div class="stat-info">
+            <h3 id="statPublished">-</h3>
+            <p>已发布</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon yellow">&#128065;</div>
+          <div class="stat-info">
+            <h3 id="statViews">-</h3>
+            <p>总浏览</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon cyan">&#128194;</div>
+          <div class="stat-info">
+            <h3 id="statCategories">-</h3>
+            <p>分类数</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 我的文章表格 -->
+      <div class="card">
+        <div class="card-header">
+          <span>&#128221; 我的文章</span>
+          <div class="search-bar" style="margin-bottom:0; gap:0.5rem;">
+            <input type="text" class="form-control" id="mySearchInput"
+                   placeholder="搜索文章..." style="max-width:220px; padding:0.4rem 0.75rem; font-size:0.8125rem;">
+            <select class="form-control" id="myStatusFilter" style="max-width:120px; padding:0.4rem 0.75rem; font-size:0.8125rem;">
+              <option value="">全部状态</option>
+              <option value="published">已发布</option>
+              <option value="draft">草稿</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>标题</th>
+                  <th>状态</th>
+                  <th>浏览</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="myPostsTable">
+                <tr>
+                  <td colspan="5" style="text-align:center; padding:2rem;">
+                    <div class="loading-spinner"></div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div id="myPostsPagination" class="pagination" style="margin-top:0;"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 TechBlog - 全栈技术博客</p>
+    </div>
+  </footer>
+
+  <!-- 删除确认模态框 -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>&#9888;&#65039; 确认删除</h3>
+        <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>确定要删除文章 "<strong id="deletePostTitle"></strong>" 吗？</p>
+        <p class="text-muted text-small mt-1">此操作不可撤销，文章将被永久删除。</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeDeleteModal()">取消</button>
+        <button class="btn btn-danger" id="confirmDeleteBtn">确认删除</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/js/utils.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    // 需要登录
+    if (!Auth.isLoggedIn()) {
+      window.location.href = '/login.html';
+    }
+
+    let myCurrentPage = 1;
+    let deletePostId = null;
+
+    // 加载统计
+    async function loadStats() {
+      try {
+        const data = await API.getStats();
+        const s = data.stats;
+        document.getElementById('statMyPosts').textContent = s.myPosts;
+        document.getElementById('statPublished').textContent = s.publishedPosts;
+        document.getElementById('statViews').textContent = s.totalViews;
+        document.getElementById('statCategories').textContent = s.totalCategories;
+      } catch {}
+    }
+
+    // 加载我的文章
+    async function loadMyPosts(page = 1) {
+      myCurrentPage = page;
+      const tbody = document.getElementById('myPostsTable');
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;"><div class="loading-spinner"></div></td></tr>';
+
+      const search = document.getElementById('mySearchInput').value.trim();
+      const status = document.getElementById('myStatusFilter').value;
+
+      try {
+        const data = await API.getMyPosts({ page, limit: 10, search, status });
+
+        if (data.posts && data.posts.length > 0) {
+          tbody.innerHTML = data.posts.map(post => `
+            <tr>
+              <td>
+                <a href="/post.html?id=${post.id}" style="font-weight:500;">
+                  ${escapeHtml(post.title)}
+                </a>
+                ${post.category_name ? `<br><span class="text-small text-muted">${escapeHtml(post.category_name)}</span>` : ''}
+              </td>
+              <td>
+                <span class="badge ${post.status === 'published' ? 'badge-success' : 'badge-warning'}">
+                  ${post.status === 'published' ? '已发布' : '草稿'}
+                </span>
+              </td>
+              <td>${post.view_count}</td>
+              <td class="text-small">${formatDate(post.created_at)}</td>
+              <td>
+                <div class="table-actions">
+                  <a href="/editor.html?id=${post.id}" class="btn btn-secondary btn-sm">编辑</a>
+                  <button class="btn btn-danger btn-sm" onclick="openDeleteModal(${post.id}, '${escapeHtml(post.title).replace(/'/g, "\\'")}')">删除</button>
+                </div>
+              </td>
+            </tr>
+          `).join('');
+
+          // 渲染分页
+          renderMyPagination(data.currentPage, data.totalPages);
+        } else {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="5" style="text-align:center; padding:2rem;">
+                <div class="empty-state" style="padding:1rem;">
+                  <p class="text-muted">暂无文章</p>
+                  <a href="/editor.html" class="btn btn-primary btn-sm mt-1">写第一篇文章</a>
+                </div>
+              </td>
+            </tr>`;
+          document.getElementById('myPostsPagination').innerHTML = '';
+        }
+      } catch {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;">加载失败</td></tr>';
+      }
+    }
+
+    function renderMyPagination(current, total) {
+      const container = document.getElementById('myPostsPagination');
+      if (total <= 1) { container.innerHTML = ''; return; }
+
+      let html = `<button class="page-btn" onclick="loadMyPosts(${current - 1})" ${current <= 1 ? 'disabled' : ''}>&laquo;</button>`;
+      for (let i = 1; i <= total; i++) {
+        html += `<button class="page-btn ${i === current ? 'active' : ''}" onclick="loadMyPosts(${i})">${i}</button>`;
+      }
+      html += `<button class="page-btn" onclick="loadMyPosts(${current + 1})" ${current >= total ? 'disabled' : ''}>&raquo;</button>`;
+      container.innerHTML = html;
+    }
+
+    // 删除模态框
+    function openDeleteModal(id, title) {
+      deletePostId = id;
+      document.getElementById('deletePostTitle').textContent = title;
+      document.getElementById('deleteModal').classList.add('show');
+    }
+
+    function closeDeleteModal() {
+      deletePostId = null;
+      document.getElementById('deleteModal').classList.remove('show');
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+      if (!deletePostId) return;
+      try {
+        await API.deletePost(deletePostId);
+        closeDeleteModal();
+        showToast('文章已删除', 'success');
+        loadMyPosts(myCurrentPage);
+        loadStats();
+      } catch (error) {
+        showToast(error.message || '删除失败', 'error');
+      }
+    });
+
+    // 搜索和筛选
+    document.getElementById('mySearchInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loadMyPosts(1);
+    });
+    document.getElementById('myStatusFilter').addEventListener('change', () => loadMyPosts(1));
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      loadStats();
+      loadMyPosts(1);
+    });
+  </script>
+</body>
+</html>

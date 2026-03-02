@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>写文章 - TechBlog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="/" class="navbar-brand">
+        <span class="logo-icon">T</span>
+        TechBlog
+      </a>
+      <div class="navbar-actions">
+        <a href="/dashboard.html" class="btn btn-secondary btn-sm">&larr; 返回管理</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-content">
+    <div class="container" style="max-width:900px;">
+      <div class="section-header">
+        <h2 id="editorTitle">&#9997;&#65039; 写新文章</h2>
+      </div>
+
+      <form id="postForm" class="card" novalidate>
+        <div class="card-body">
+          <!-- 标题 -->
+          <div class="form-group">
+            <label for="title" class="form-label">文章标题 *</label>
+            <input type="text" id="title" name="title" class="form-control"
+                   placeholder="输入文章标题" required>
+            <div class="form-error hidden" id="titleError"></div>
+          </div>
+
+          <!-- 分类和标签 -->
+          <div class="flex gap-2" style="flex-wrap:wrap;">
+            <div class="form-group" style="flex:1; min-width:200px;">
+              <label for="category" class="form-label">分类</label>
+              <select id="category" name="category_id" class="form-control">
+                <option value="">-- 选择分类 --</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1; min-width:200px;">
+              <label class="form-label">标签（多选）</label>
+              <div id="tagsContainer" class="flex flex-wrap gap-1" style="padding:0.5rem 0;">
+                <!-- 动态加载 -->
+              </div>
+            </div>
+          </div>
+
+          <!-- 摘要 -->
+          <div class="form-group">
+            <label for="excerpt" class="form-label">摘要</label>
+            <textarea id="excerpt" name="excerpt" class="form-control" rows="2"
+                      placeholder="简短的文章描述（可选，留空将自动截取内容前200字）"></textarea>
+          </div>
+
+          <!-- 内容编辑器 -->
+          <div class="form-group">
+            <label class="form-label">文章内容 *</label>
+            <div class="editor-toolbar">
+              <button type="button" onclick="execCmd('bold')" title="粗体"><b>B</b></button>
+              <button type="button" onclick="execCmd('italic')" title="斜体"><i>I</i></button>
+              <button type="button" onclick="execCmd('underline')" title="下划线"><u>U</u></button>
+              <button type="button" onclick="execCmd('strikeThrough')" title="删除线"><s>S</s></button>
+              <span style="width:1px; height:20px; background:var(--gray-300); margin:0 0.25rem;"></span>
+              <button type="button" onclick="execCmd('formatBlock', 'h2')" title="标题2">H2</button>
+              <button type="button" onclick="execCmd('formatBlock', 'h3')" title="标题3">H3</button>
+              <button type="button" onclick="execCmd('formatBlock', 'p')" title="段落">P</button>
+              <span style="width:1px; height:20px; background:var(--gray-300); margin:0 0.25rem;"></span>
+              <button type="button" onclick="execCmd('insertUnorderedList')" title="无序列表">&#8226; 列表</button>
+              <button type="button" onclick="execCmd('insertOrderedList')" title="有序列表">1. 列表</button>
+              <button type="button" onclick="insertLink()" title="链接">&#128279; 链接</button>
+              <button type="button" onclick="execCmd('formatBlock', 'pre')" title="代码块">&lt;/&gt;</button>
+            </div>
+            <div class="editor-area" id="contentEditor" contenteditable="true"
+                 data-placeholder="开始写作..."></div>
+            <div class="form-error hidden" id="contentError"></div>
+          </div>
+
+          <!-- 状态 -->
+          <div class="form-group">
+            <label class="form-label">发布状态</label>
+            <div class="flex gap-2">
+              <label style="display:flex; align-items:center; gap:0.375rem; cursor:pointer;">
+                <input type="radio" name="status" value="draft" checked>
+                <span>&#128221; 保存为草稿</span>
+              </label>
+              <label style="display:flex; align-items:center; gap:0.375rem; cursor:pointer;">
+                <input type="radio" name="status" value="published">
+                <span>&#127757; 立即发布</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-footer flex justify-between">
+          <a href="/dashboard.html" class="btn btn-secondary">取消</a>
+          <div class="flex gap-1">
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+              &#128190; 保存文章
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/js/utils.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    // 需要登录
+    if (!Auth.isLoggedIn()) {
+      window.location.href = '/login.html';
+    }
+
+    let editingPostId = null;
+    let selectedTags = [];
+
+    // 富文本编辑器命令
+    function execCmd(cmd, value) {
+      if (cmd === 'formatBlock') {
+        document.execCommand(cmd, false, `<${value}>`);
+      } else {
+        document.execCommand(cmd, false, value);
+      }
+      document.getElementById('contentEditor').focus();
+    }
+
+    function insertLink() {
+      const url = prompt('请输入链接地址:', 'https://');
+      if (url) {
+        document.execCommand('createLink', false, url);
+      }
+    }
+
+    // 加载分类和标签
+    async function loadFormData() {
+      try {
+        const [catData, tagData] = await Promise.all([
+          API.getCategories(),
+          API.getTags(),
+        ]);
+
+        // 分类下拉
+        const catSelect = document.getElementById('category');
+        if (catData.categories) {
+          catData.categories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.id;
+            opt.textContent = cat.name;
+            catSelect.appendChild(opt);
+          });
+        }
+
+        // 标签多选
+        const tagsContainer = document.getElementById('tagsContainer');
+        if (tagData.tags) {
+          tagsContainer.innerHTML = tagData.tags.map(tag => `
+            <label class="tag" style="cursor:pointer; user-select:none;" id="tag-${tag.id}">
+              <input type="checkbox" value="${tag.id}" style="margin-right:0.25rem;"
+                     onchange="toggleTag(${tag.id})">
+              ${escapeHtml(tag.name)}
+            </label>
+          `).join('');
+        }
+      } catch {}
+    }
+
+    function toggleTag(tagId) {
+      const idx = selectedTags.indexOf(tagId);
+      const label = document.getElementById(`tag-${tagId}`);
+      if (idx === -1) {
+        selectedTags.push(tagId);
+        label.style.background = 'var(--primary-50)';
+        label.style.color = 'var(--primary)';
+      } else {
+        selectedTags.splice(idx, 1);
+        label.style.background = '';
+        label.style.color = '';
+      }
+    }
+
+    // 如果是编辑模式，加载文章数据
+    async function loadPostForEdit() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      if (!id) return;
+
+      editingPostId = parseInt(id);
+      document.getElementById('editorTitle').innerHTML = '&#9997;&#65039; 编辑文章';
+      document.title = '编辑文章 - TechBlog';
+
+      try {
+        const data = await API.getPost(id);
+        const post = data.post;
+
+        document.getElementById('title').value = post.title;
+        document.getElementById('excerpt').value = post.excerpt || '';
+        document.getElementById('contentEditor').innerHTML = post.content;
+
+        if (post.category_id) {
+          document.getElementById('category').value = post.category_id;
+        }
+
+        // 设置状态
+        const statusRadio = document.querySelector(`input[name="status"][value="${post.status}"]`);
+        if (statusRadio) statusRadio.checked = true;
+
+        // 设置标签
+        if (post.tags) {
+          post.tags.forEach(tag => {
+            selectedTags.push(tag.id);
+            const checkbox = document.querySelector(`#tag-${tag.id} input`);
+            if (checkbox) {
+              checkbox.checked = true;
+              const label = document.getElementById(`tag-${tag.id}`);
+              label.style.background = 'var(--primary-50)';
+              label.style.color = 'var(--primary)';
+            }
+          });
+        }
+      } catch {
+        showToast('加载文章失败', 'error');
+      }
+    }
+
+    // 提交表单
+    document.getElementById('postForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const title = document.getElementById('title').value.trim();
+      const content = document.getElementById('contentEditor').innerHTML.trim();
+      const excerpt = document.getElementById('excerpt').value.trim();
+      const category_id = document.getElementById('category').value || null;
+      const status = document.querySelector('input[name="status"]:checked').value;
+
+      // 验证
+      let valid = true;
+      if (!title) {
+        showFieldError('title', '请输入文章标题');
+        valid = false;
+      } else {
+        clearFieldError('title');
+      }
+
+      if (!content || content === '<br>' || content === '<div><br></div>') {
+        document.getElementById('contentError').textContent = '请输入文章内容';
+        document.getElementById('contentError').classList.remove('hidden');
+        valid = false;
+      } else {
+        document.getElementById('contentError').classList.add('hidden');
+      }
+
+      if (!valid) return;
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner" style="width:18px;height:18px;"></span> 保存中...';
+
+      const postData = {
+        title,
+        content,
+        excerpt,
+        category_id: category_id ? parseInt(category_id) : null,
+        status,
+        tags: selectedTags,
+      };
+
+      try {
+        if (editingPostId) {
+          await API.updatePost(editingPostId, postData);
+          showToast('文章更新成功！', 'success');
+        } else {
+          await API.createPost(postData);
+          showToast('文章创建成功！', 'success');
+        }
+        setTimeout(() => window.location.href = '/dashboard.html', 1000);
+      } catch (error) {
+        showToast(error.message || '保存失败', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '&#128190; 保存文章';
+      }
+    });
+
+    // 编辑器占位符
+    const editor = document.getElementById('contentEditor');
+    editor.addEventListener('focus', () => {
+      if (!editor.textContent.trim()) {
+        editor.innerHTML = '';
+      }
+    });
+    editor.addEventListener('blur', () => {
+      if (!editor.textContent.trim()) {
+        editor.innerHTML = '';
+      }
+    });
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadFormData();
+      await loadPostForEdit();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个人资料 - TechBlog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="/" class="navbar-brand">
+        <span class="logo-icon">T</span>
+        TechBlog
+      </a>
+      <ul class="navbar-nav" id="navMenu">
+        <li><a href="/">&#127968; 首页</a></li>
+        <li><a href="/posts.html">&#128196; 文章</a></li>
+        <li id="navDashboard"><a href="/dashboard.html">&#128202; 管理</a></li>
+      </ul>
+      <div class="navbar-actions">
+        <div id="guestActions" class="hidden"></div>
+        <div id="userActions">
+          <div class="user-menu" id="userMenuToggle">
+            <div class="user-avatar" id="userAvatarNav">U</div>
+            <span id="usernameNav" style="font-size:0.875rem; font-weight:500;">用户</span>
+            <span style="font-size:0.75rem;">&#9660;</span>
+          </div>
+          <div class="user-dropdown" id="userDropdown">
+            <a href="/dashboard.html">&#128202; 管理面板</a>
+            <a href="/editor.html">&#9997;&#65039; 写文章</a>
+            <a href="/profile.html">&#128100; 个人资料</a>
+            <div class="divider"></div>
+            <button onclick="handleLogout()">&#128682; 退出登录</button>
+          </div>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="菜单">&#9776;</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-content">
+    <div class="container" style="max-width:700px;">
+      <h2 class="mb-3">&#128100; 个人资料</h2>
+
+      <!-- 基本信息 -->
+      <div class="card mb-3">
+        <div class="card-header">基本信息</div>
+        <div class="card-body">
+          <form id="profileForm" novalidate>
+            <div class="form-group">
+              <label for="profileUsername" class="form-label">用户名</label>
+              <input type="text" id="profileUsername" class="form-control" required>
+              <div class="form-error hidden" id="profileUsernameError"></div>
+            </div>
+
+            <div class="form-group">
+              <label for="profileEmail" class="form-label">邮箱</label>
+              <input type="email" id="profileEmail" class="form-control" disabled>
+              <div class="form-hint">邮箱不可修改</div>
+            </div>
+
+            <div class="form-group">
+              <label for="profileBio" class="form-label">个人简介</label>
+              <textarea id="profileBio" class="form-control" rows="3"
+                        placeholder="介绍一下自己..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="profileBtn">保存修改</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 修改密码 -->
+      <div class="card">
+        <div class="card-header">修改密码</div>
+        <div class="card-body">
+          <form id="passwordForm" novalidate>
+            <div class="form-group">
+              <label for="currentPassword" class="form-label">当前密码</label>
+              <input type="password" id="currentPassword" class="form-control" required>
+              <div class="form-error hidden" id="currentPasswordError"></div>
+            </div>
+
+            <div class="form-group">
+              <label for="newPassword" class="form-label">新密码</label>
+              <input type="password" id="newPassword" class="form-control"
+                     placeholder="至少6个字符" required>
+              <div class="form-error hidden" id="newPasswordError"></div>
+            </div>
+
+            <div class="form-group">
+              <label for="confirmNewPassword" class="form-label">确认新密码</label>
+              <input type="password" id="confirmNewPassword" class="form-control" required>
+              <div class="form-error hidden" id="confirmNewPasswordError"></div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="passwordBtn">修改密码</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 TechBlog - 全栈技术博客</p>
+    </div>
+  </footer>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/js/utils.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    if (!Auth.isLoggedIn()) {
+      window.location.href = '/login.html';
+    }
+
+    // 加载用户信息
+    async function loadProfile() {
+      try {
+        const data = await API.getMe();
+        const user = data.user;
+        document.getElementById('profileUsername').value = user.username;
+        document.getElementById('profileEmail').value = user.email;
+        document.getElementById('profileBio').value = user.bio || '';
+      } catch {
+        showToast('加载个人资料失败', 'error');
+      }
+    }
+
+    // 更新资料
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('profileBtn');
+      const username = document.getElementById('profileUsername').value.trim();
+      const bio = document.getElementById('profileBio').value.trim();
+
+      if (!username || username.length < 2) {
+        showFieldError('profileUsername', '用户名至少2个字符');
+        return;
+      }
+      clearFieldError('profileUsername');
+
+      btn.disabled = true;
+      btn.textContent = '保存中...';
+
+      try {
+        const data = await API.updateProfile({ username, bio });
+        // 更新本地存储
+        const user = Auth.getUser();
+        user.username = data.user.username;
+        localStorage.setItem('user', JSON.stringify(user));
+        updateNavUser();
+        showToast('资料更新成功', 'success');
+      } catch (error) {
+        showToast(error.message || '更新失败', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '保存修改';
+      }
+    });
+
+    // 修改密码
+    document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('passwordBtn');
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+
+      let valid = true;
+
+      if (!currentPassword) {
+        showFieldError('currentPassword', '请输入当前密码');
+        valid = false;
+      } else { clearFieldError('currentPassword'); }
+
+      if (!newPassword || newPassword.length < 6) {
+        showFieldError('newPassword', '新密码至少6个字符');
+        valid = false;
+      } else { clearFieldError('newPassword'); }
+
+      if (newPassword !== confirmNewPassword) {
+        showFieldError('confirmNewPassword', '两次输入的密码不一致');
+        valid = false;
+      } else { clearFieldError('confirmNewPassword'); }
+
+      if (!valid) return;
+
+      btn.disabled = true;
+      btn.textContent = '修改中...';
+
+      try {
+        await API.changePassword({ currentPassword, newPassword });
+        showToast('密码修改成功', 'success');
+        document.getElementById('passwordForm').reset();
+      } catch (error) {
+        showToast(error.message || '修改失败', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '修改密码';
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', loadProfile);
+  </script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="全栈博客 - 分享技术与生活">
+  <title>TechBlog - 全栈技术博客</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- ==================== 导航栏 ==================== -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="/" class="navbar-brand">
+        <span class="logo-icon">T</span>
+        TechBlog
+      </a>
+
+      <ul class="navbar-nav" id="navMenu">
+        <li><a href="/" class="active">&#127968; 首页</a></li>
+        <li><a href="/posts.html">&#128196; 文章</a></li>
+        <li id="navDashboard" class="hidden"><a href="/dashboard.html">&#128202; 管理</a></li>
+      </ul>
+
+      <div class="navbar-actions">
+        <!-- 未登录 -->
+        <div id="guestActions">
+          <a href="/login.html" class="btn btn-outline btn-sm">登录</a>
+          <a href="/register.html" class="btn btn-primary btn-sm">注册</a>
+        </div>
+        <!-- 已登录 -->
+        <div id="userActions" class="hidden">
+          <div class="user-menu" id="userMenuToggle">
+            <div class="user-avatar" id="userAvatarNav">U</div>
+            <span id="usernameNav" style="font-size:0.875rem; font-weight:500;">用户</span>
+            <span style="font-size:0.75rem;">&#9660;</span>
+          </div>
+          <div class="user-dropdown" id="userDropdown">
+            <a href="/dashboard.html">&#128202; 管理面板</a>
+            <a href="/editor.html">&#9997;&#65039; 写文章</a>
+            <a href="/profile.html">&#128100; 个人资料</a>
+            <div class="divider"></div>
+            <button onclick="handleLogout()">&#128682; 退出登录</button>
+          </div>
+        </div>
+
+        <button class="mobile-toggle" id="mobileToggle" aria-label="菜单">
+          &#9776;
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ==================== Hero 区域 ==================== -->
+  <section class="hero" id="heroSection">
+    <div class="hero-content">
+      <h1>&#128640; 探索技术的无限可能</h1>
+      <p>在这里分享和发现最新的全栈开发技术、最佳实践和开发经验</p>
+      <div class="flex justify-center gap-2">
+        <a href="/posts.html" class="btn btn-primary btn-lg" style="background:#fff; color:var(--primary);">浏览文章</a>
+        <a href="/register.html" class="btn btn-outline btn-lg" id="heroRegisterBtn" style="border-color:#fff; color:#fff;">立即加入</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 最新文章 ==================== -->
+  <main class="page-content">
+    <div class="container">
+      <div class="section-header">
+        <h2>&#128293; 最新文章</h2>
+        <a href="/posts.html" class="btn btn-secondary btn-sm">查看全部 &rarr;</a>
+      </div>
+
+      <div id="latestPosts" class="posts-grid">
+        <div class="loading-overlay">
+          <div class="loading-spinner"></div>
+        </div>
+      </div>
+
+      <!-- 分类区域 -->
+      <div class="section-header mt-4">
+        <h2>&#128194; 文章分类</h2>
+      </div>
+      <div id="categoriesList" class="flex flex-wrap gap-2">
+        <div class="loading-overlay">
+          <div class="loading-spinner"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== 页脚 ==================== -->
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 TechBlog - 全栈技术博客 | 使用 Node.js + MySQL 构建</p>
+    </div>
+  </footer>
+
+  <!-- Toast 容器 -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/js/utils.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    // 加载首页数据
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 加载最新文章
+      try {
+        const data = await API.getPosts({ limit: 6 });
+        const container = document.getElementById('latestPosts');
+        if (data.posts && data.posts.length > 0) {
+          container.innerHTML = data.posts.map(post => createPostCard(post)).join('');
+        } else {
+          container.innerHTML = `
+            <div class="empty-state" style="grid-column: 1/-1;">
+              <div class="icon">&#128221;</div>
+              <h3>暂无文章</h3>
+              <p>还没有发布任何文章，快来写第一篇吧！</p>
+            </div>`;
+        }
+      } catch {
+        document.getElementById('latestPosts').innerHTML =
+          '<p class="text-center text-muted" style="grid-column:1/-1;">加载失败，请检查数据库连接</p>';
+      }
+
+      // 加载分类
+      try {
+        const catData = await API.getCategories();
+        const catContainer = document.getElementById('categoriesList');
+        if (catData.categories && catData.categories.length > 0) {
+          catContainer.innerHTML = catData.categories.map(cat => `
+            <a href="/posts.html?category=${cat.id}" class="tag" style="padding:0.5rem 1rem; font-size:0.9375rem;">
+              ${escapeHtml(cat.name)}
+              <span style="margin-left:0.25rem; opacity:0.6;">(${cat.post_count})</span>
+            </a>
+          `).join('');
+        } else {
+          catContainer.innerHTML = '<p class="text-muted">暂无分类</p>';
+        }
+      } catch {
+        document.getElementById('categoriesList').innerHTML = '';
+      }
+
+      // 如果已登录，隐藏 Hero 注册按钮
+      if (Auth.isLoggedIn()) {
+        const heroBtn = document.getElementById('heroRegisterBtn');
+        if (heroBtn) {
+          heroBtn.textContent = '写文章';
+          heroBtn.href = '/editor.html';
+        }
+      }
+    });
+  </script>
+</body>
+</html>

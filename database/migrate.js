@@ -125,10 +125,20 @@ async function migrate() {
     console.log('\n🎉 数据库迁移完成！');
   } catch (error) {
     console.error('❌ 迁移失败:', error.message);
-    process.exit(1);
+    // 命令行直接运行时退出，被引用时抛出错误
+    if (require.main === module) {
+      process.exit(1);
+    }
+    throw error;
   } finally {
     await connection.end();
   }
 }
 
-migrate();
+// 导出 migrate 函数供 server.js 调用
+module.exports = { migrate };
+
+// 如果直接运行此脚本 (npm run migrate)
+if (require.main === module) {
+  migrate();
+}

@@ -83,6 +83,11 @@ app.use(express.static(path.join(__dirname, 'public'), {
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api', apiLimiter, postRoutes);
 
+// ==================== 健康检查路由 ====================
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // ==================== 前端页面路由 ====================
 // 所有非 API 路由返回前端页面（SPA 风格）
 app.get('*', (req, res) => {
@@ -100,25 +105,41 @@ app.get('*', (req, res) => {
 app.use(notFound);
 app.use(errorHandler);
 
-// ==================== 启动服务器 ====================
+// ==================== 自动迁移 + 启动服务器 ====================
+async function autoMigrate() {
+  try {
+    const { migrate } = require('./database/migrate');
+    await migrate();
+    console.log('✅ 数据库自动迁移成功');
+    return true;
+  } catch (error) {
+    console.warn('⚠️  数据库自动迁移失败（服务器仍将启动）:', error.message);
+    return false;
+  }
+}
+
 async function startServer() {
+  // 尝试自动迁移（失败不阻止启动）
+  const migrated = await autoMigrate();
+
   // 测试数据库连接
   const dbConnected = await testConnection();
 
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`
 ╔══════════════════════════════════════════════╗
 ║     全栈博客内容管理系统 已启动!              ║
 ╠══════════════════════════════════════════════╣
-║  地址:  http://localhost:${PORT}               ║
-║  环境:  ${(process.env.NODE_ENV || 'development').padEnd(36)}║
+║  端口:  ${String(PORT).padEnd(37)}║
+║  环境:  ${(process.env.NODE_ENV || 'development').padEnd(37)}║
 ║  数据库: ${dbConnected ? '✅ 已连接' : '❌ 未连接'}${' '.repeat(27)}║
+║  迁移:  ${migrated ? '✅ 已完成' : '⚠️  跳过'}${' '.repeat(27)}║
 ╚══════════════════════════════════════════════╝
     `);
 
     if (!dbConnected) {
       console.log('⚠️  数据库未连接，部分功能可能不可用');
-      console.log('   请检查 .env 中的数据库配置，然后运行 npm run migrate');
+      console.log('   请确保已配置 DATABASE_URL 或 MYSQL_URL 环境变量');
     }
   });
 }

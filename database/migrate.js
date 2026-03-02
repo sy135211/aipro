@@ -10,13 +10,29 @@ require('dotenv').config();
 const DB_NAME = process.env.DB_NAME || 'fullstack_blog';
 
 async function getConnection() {
-  // 云平台: 使用 DATABASE_URL 直接连接（数据库已由平台创建）
-  if (process.env.DATABASE_URL || process.env.MYSQL_URL) {
-    const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
+  // 方式一: 使用完整的数据库 URL（云平台推荐）
+  const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL
+    || process.env.MYSQL_PUBLIC_URL || process.env.DATABASE_PUBLIC_URL;
+  if (dbUrl) {
+    console.log('📌 迁移: 使用数据库 URL 连接');
     return mysql.createConnection(dbUrl);
   }
 
-  // 本地: 先连接不指定数据库，手动创建
+  // 方式二: 使用 Railway 自动注入的 MYSQL* 变量
+  if (process.env.MYSQLHOST) {
+    console.log('📌 迁移: 使用 MYSQL* 环境变量连接');
+    return mysql.createConnection({
+      host: process.env.MYSQLHOST,
+      port: parseInt(process.env.MYSQLPORT) || 3306,
+      user: process.env.MYSQLUSER || 'root',
+      password: process.env.MYSQLPASSWORD || '',
+      database: process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'railway',
+      charset: 'utf8mb4',
+    });
+  }
+
+  // 方式三: 本地开发 - 先连接不指定数据库，手动创建
+  console.log('📌 迁移: 使用本地 DB_* 环境变量连接');
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT) || 3306,

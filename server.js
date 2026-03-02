@@ -88,6 +88,27 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// 调试端点 - 查看数据库配置状态（不暴露密码）
+app.get('/api/debug/env', (req, res) => {
+  const dbVars = [
+    'DATABASE_URL', 'MYSQL_URL', 'MYSQL_PUBLIC_URL', 'DATABASE_PUBLIC_URL',
+    'MYSQLHOST', 'MYSQLPORT', 'MYSQLUSER', 'MYSQLDATABASE', 'MYSQL_DATABASE',
+    'DB_HOST', 'DB_PORT', 'DB_USER', 'DB_NAME',
+    'NODE_ENV', 'PORT',
+  ];
+  const result = {};
+  for (const v of dbVars) {
+    if (process.env[v]) {
+      // 隐藏敏感值，只显示是否存在和前几个字符
+      const val = process.env[v];
+      result[v] = val.length > 8 ? val.substring(0, 8) + '...' : '***set***';
+    } else {
+      result[v] = '(not set)';
+    }
+  }
+  res.json({ envVars: result });
+});
+
 // ==================== 前端页面路由 ====================
 // 所有非 API 路由返回前端页面（SPA 风格）
 app.get('*', (req, res) => {
